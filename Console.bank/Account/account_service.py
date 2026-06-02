@@ -19,6 +19,11 @@ class AccountService:
     def get_members_accounts(self, id):
         return self.__dao.select_accounts_by_member_id(id)
 
+    def get_account_balance(self, account_no):
+        account = self.__dao.select_account_by_account_no(account_no)
+        if account:
+            return account.get_balance()
+        return -1
     def deposit(self, account_no, amount):
         account = self.__dao.select_account_by_account_no(account_no)
         if account:
@@ -28,34 +33,37 @@ class AccountService:
         return False
 
     def withdraw(self, id, account_no, amount, password):
-        # 마이너스 지원 안함
         account = self.__dao.select_account_by_account_no(account_no)
-        if account:
-            if account.get_owner() != id or account.get_password() != password:
-                raise KeyError
-            new_balance = account.get_balance() - amount
-            if new_balance < 0:
-                raise ValueError
-            account.set_balance(new_balance)
-            return self.__dao.update_account(account_no, account)
-        return False
-
-    def delete_account(self, id, account_no, password):
-        account = self.__dao.select_account_by_account_no(account_no)
-        if not account: return False
+        if not account:
+            raise LookupError
         if account.get_owner() != id or account.get_password() != password:
             raise KeyError
+        new_balance = account.get_balance() - amount
+        if new_balance < 0:
+            raise ValueError
+        account.set_balance(new_balance)
+        self.__dao.update_account(account_no, account)
+        
+    def delete_account(self, id, account_no, password):
+        account = self.__dao.select_account_by_account_no(account_no)
+        if not account:
+            raise LookupError
+        if account.get_owner() != id or account.get_password() != password:
+            raise KeyError
+        if account.get_balance() > 0:
+            raise ValueError
+        
         return self.__dao.delete_account(account_no)
 
 if __name__ == '__main__':
     aservice = AccountService(AccountDAO())
-    aservice.create_account(Account(0, 'hyejeong', 100000, '1234'))
-    aservice.create_account(Account(0, 'hyejeong', 200000, '1234'))
-    aservice.create_account(Account(0, 'curi', 300000, '1234'))
+    aservice.create_account(Account(0, 'ethan', 100000, '1234'))
+    aservice.create_account(Account(0, 'ethan', 200000, '1234'))
+    aservice.create_account(Account(0, 'johnny', 300000, '1234'))
     for account in aservice.get_all_accounts():
         print(account)
     print()
-    for account in aservice.get_members_accounts('curi'):
+    for account in aservice.get_members_accounts('johnny'):
         print(account)
 
     print()
@@ -66,7 +74,7 @@ if __name__ == '__main__':
         print('없는 계좌입니다.')
 
     try:
-        aservice.withdraw('hyejeong', '111112', 10000, '1234')
+        aservice.withdraw('ethan', '111112', 10000, '1234')
     except Exception as e:
         print(type(e))
     else:
@@ -74,11 +82,13 @@ if __name__ == '__main__':
             print(account)
 
     try:
-        aservice.delete_account('curi', '111115', '1111')
+        aservice.delete_account('johnny', '111115', '1111')
     except Exception as e:
         print(type(e))
     else:
         for account in aservice.get_all_accounts():
             print(account)
            
+
+
 
