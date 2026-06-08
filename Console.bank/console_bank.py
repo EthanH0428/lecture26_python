@@ -20,13 +20,20 @@ class ConsoleBank:
     def main(self):
         self.show_welcome()
         while True:
-            menu = self.select_menu(ConsoleBank.start_menu)
-            if menu == 0: 
-                break
-            elif menu == 1:
-                self.menu_login()
-            elif menu == 2:
-                self.menu_join()
+            try:
+                menu = self.select_menu(ConsoleBank.start_menu)
+                if menu == 0: 
+                    break
+                elif menu == 1:
+                    self.menu_login()
+                elif menu == 2:
+                    self.menu_join()
+            except Exception as e:
+                if str(e) == "FORCE_LOGOUT":
+                    continue
+                else:
+                    print(f"오류가 발생했습니다: {e}")
+                    break
         self.say_goodbye()
 
     def show_welcome(self):
@@ -42,8 +49,6 @@ class ConsoleBank:
         print("=" * 20)
         return int(input("원하시는 메뉴 번호: "))
 
-
-
     def menu_join(self):
         print('\n>>>>> 회원가입 <<<<<<')
         member_id = input('>> 아이디 : ')
@@ -51,29 +56,29 @@ class ConsoleBank:
         name = input('>> 이름 : ')
         
         new_member = Member(member_id, password, name)
-        if self.msv.register_member(new_member): 
+        if self.msv.join(new_member): 
             print(f'회원 {name}님의 가입이 완료되었습니다.')
         else:
-            print('회원가입을 할 수 없습니다.')
+            print('이미 존재하는 아이디이거나 회원가입을 할 수 없습니다.')
 
     def menu_login(self):
         print('\n>>>>> 로그인 <<<<<<')
         member_id = input('>> 아이디 : ')
         password = input('>> 비밀번호 : ')
-        if member_id == 'admin' and password == 'admin123':
-            print('\n관리자 계정으로 로그인했습니다.')
-            self.msv.current_user = 'admin'
-            self.run_admin_menu()
-            return
+        
         if self.msv.login(member_id, password): 
-            print(f'\n로그인 성공했습니다.')
-            self.run_banking_menu()
+            if self.msv.current_user == MemberService.ADMIN_ID:
+                print('\n관리자 계정으로 로그인했습니다.')
+                self.run_admin_menu()
+            else:
+                print(f'\n로그인 성공했습니다.')
+                self.run_banking_menu()
         else:
             print('아이디 또는 비밀번호가 틀렸습니다.')
 
     def menu_logout(self):
         print('\n>>>>> 로그아웃 <<<<<<')
-        self.msv.current_user = None
+        self.msv.logout() 
         print('로그아웃 되었습니다.')
 
     def run_banking_menu(self):
@@ -149,7 +154,6 @@ class ConsoleBank:
     def menu_myinfo(self):
         self.run_my_info_menu()
 
-
     def run_my_info_menu(self):
         while True:
             menu = self.select_menu(ConsoleBank.member_myinfo_menu)
@@ -163,21 +167,27 @@ class ConsoleBank:
         old_pw = input('>> 현재 비밀번호 : ')
         new_pw = input('>> 새로운 비밀번호 : ')
         
-        if self.msv.update_password(self.msv.current_user, old_pw, new_pw):
+        if self.msv.update_member_password(self.msv.current_user, old_pw, new_pw):
             print('비밀번호가 변경되었습니다.')
         else:
-            print('현재 비밀번호가 일치하지 않습니다.')
+            print('현재 비밀번호가 일치하지 않거나 본인 계정이 아닙니다.')
 
     def menu_delete_membership(self):
         print('\n>>>>> 회원탈퇴 <<<<<<')
         pw = input('>> 본인확인 비밀번호 : ')
-        if self.msv.delete_member(self.msv.current_user, pw):
-            print('회원탈퇴가 처리되었습니다. 그동안 이용해 주셔서 감사합니다.')
-            self.msv.current_user = None
-            raise Exception("FORCE_LOGOUT")
+        
+        member = self.msv.view_member_info(self.msv.current_user)
+        if member and member.get_password() == pw:
+            if self.msv.remove_member(self.msv.current_user):
+                print('회원탈퇴가 처리되었습니다. 그동안 이용해 주셔서 감사합니다.')
+                self.msv.logout()
+                raise Exception("FORCE_LOGOUT")
         else:
             print('비밀번호가 올바르지 않습니다.')
 
+    # =========================================================================
+    # 관리자 영역
+    # =========================================================================
 
     def run_admin_menu(self):
         while True:
@@ -191,7 +201,6 @@ class ConsoleBank:
     def menu_manage_members(self): self.run_admin_member_menu()
     def menu_manage_accounts(self): self.run_admin_account_menu()
 
-
     def run_admin_account_menu(self):
         while True:
             menu = self.select_menu(ConsoleBank.admin_account_menu)
@@ -199,7 +208,7 @@ class ConsoleBank:
                 break                
             elif menu == 1: self.menu_list_all_accounts()
             elif menu == 2: self.menu_list_member_accounts()
-            elif menu == 3: self.menu_delete_member() 
+            elif menu == 3: self.menu_delete_member() # 회원 강퇴 메뉴 연동
 
     def menu_list_all_accounts(self):
         print('\n>>>>> 전체계좌목록 <<<<<<')
@@ -212,7 +221,6 @@ class ConsoleBank:
         target_user = input('>> 조회할 회원 ID : ')
         self.list_members_accounts(target_user)
 
-
     def run_admin_member_menu(self):
         while True:
             menu = self.select_menu(ConsoleBank.admin_member_menu)
@@ -223,23 +231,29 @@ class ConsoleBank:
 
     def menu_list_members(self):
         print('\n>>>>> 회원목록 <<<<<<')
-        members = self.msv.get_all_members()
+        members = self.msv.list_members()
         for m in members:
-            print(f'ID: {m.member_id} | 이름: {m.name}')
+            print(f'ID: {m.get_id()} | 이름: {m.get_name()}')
 
     def menu_view_member_info(self):
         print('\n>>>>> 회원정보조회 <<<<<<')
         target_user = input('>> 조회할 회원 ID : ')
-        m = self.msv.get_member_info(target_user)
+        m = self.msv.view_member_info(target_user)
         if m:
-            print(f'ID: {m.member_id}\n이름: {m.name}')
+            print(f'ID: {m.get_id()}\n이름: {m.get_name()}')
         else:
             print('존재하지 않는 회원입니다.')
 
     def menu_delete_member(self):
         print('\n>>>>> 회원강퇴 <<<<<<')
         target_user = input('>> 강퇴할 회원 ID : ')
-        if self.msv.force_delete_member(target_user):
+        
+        if target_user == MemberService.ADMIN_ID:
+            print("관리자 계정은 강퇴할 수 없습니다.")
+            return
+
+        if self.msv.remove_member(target_user):
+            # 회원이 강퇴되면 해당 회원의 계좌도 함께 삭제 처리
             self.asv.delete_all_accounts_of_member(target_user) 
             print(f'회원 {target_user}님이 강제 탈퇴 처리되었습니다.')
         else:
@@ -247,10 +261,5 @@ class ConsoleBank:
 
 
 if __name__ == '__main__':
-    try:
-        app = ConsoleBank()
-        app.main()
-    except Exception as e:
-        if str(e) == "FORCE_LOGOUT":
-            app = ConsoleBank()
-            app.main()
+    app = ConsoleBank()
+    app.main()
