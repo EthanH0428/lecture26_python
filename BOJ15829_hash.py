@@ -1,14 +1,19 @@
-L = int(input())  
-string = input()  
-
-r = 31
-M = 1234567891
-
-hash_value = 0
-
-for i in range(L):
-    a_i = ord(string[i]) - ord('a') + 1
+def get_hash():
+    r = 31
+    M = 1234567891
     
-    hash_value += a_i * (r ** i)
+    alpa_input = input('알파벳을 입력하시오 : ').lower()
+    
+    hash_value = 0
+    current_r = 1 
+    
+    for target in alpa_input:
+        if 'a' <= target <= 'z':
+            alpa_no = ord(target) - ord('a') + 1
+            hash_value = (hash_value + alpa_no * current_r) % M
+            current_r = (current_r * r) % M
+            
+    return hash_value
 
-print(hash_value % M)
+a = get_hash()
+print(a)
