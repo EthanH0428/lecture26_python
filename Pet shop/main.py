@@ -22,7 +22,7 @@ def main():
     user = shop_service.logined_member
     print(f"\n🎉 로그인 성공! {user.name} 님 반갑습니다. (등급: {user.grade})")
 
-    # 2. 메인 메뉴 루프
+    # 2. 메인 메뉴 
     while True:
         print("\n==================== [메인 메뉴] ====================")
         print("1. 상품 목록 조회 및 담기 (상품 / 장바구니 메뉴)")

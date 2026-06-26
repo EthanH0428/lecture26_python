@@ -8,7 +8,7 @@ class ShopService:
         self.cart = Cart()
         self.orders = []
         self.logined_member = None
-        self.order_sequence = 20260001  # 주문번호 시퀀스 포맷 설정
+        self.order_sequence = 20260001  
 
     def login(self, login_id: str, password: str) -> bool:
         member = self.member_dao.find_by_login_id(login_id)
@@ -33,7 +33,7 @@ class ShopService:
         order_items = []
         for cart_item in self.cart.items:
             product = cart_item.product
-            # 비즈니스 로직: 재고 차감 및 검증
+     
             product.decrease_stock(cart_item.get_quantity) if hasattr(cart_item, 'get_quantity') else product.decrease_stock(cart_item.quantity)
             order_items.append(OrderItem(product, cart_item.quantity))
 
